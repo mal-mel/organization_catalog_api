@@ -235,11 +235,12 @@ organization_catalog/
 │   ├── core/             # Конфигурация, БД, безопасность
 │   ├── crud/             # Бизнес-логика (CRUD операции)
 │   ├── models/           # SQLAlchemy модели
+│   ├── migrations/       # Alembic миграции
 │   ├── schemas/          # Pydantic схемы
 │   └── main.py           # Точка входа
 ├── tests/                # Тесты
+├── deploy/               # Тут докер
 ├── scripts/              # Вспомогательные скрипты
-├── migrations/           # Alembic миграции
 └── docker-compose.yml    # Docker конфигурация
 ```
 

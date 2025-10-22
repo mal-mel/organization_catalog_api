@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: org_catalog_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog_user -d organization_catalog || pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+
+  db_init:
+    image: postgres:15
+    container_name: org_catalog_db_init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres_password
+    volumes:
+      - ./deploy/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      sh -c "
+        echo '🔄 Initializing database and user...' &&
+        until psql -c 'SELECT 1;' 2>/dev/null; do
+          echo '⏳ Waiting for PostgreSQL...' &&
+          sleep 2
+        done &&
+        echo '✅ PostgreSQL is ready!' &&
+        psql -f /docker-entrypoint-initdb.d/init.sql &&
+        echo '✅ Database initialization completed!' &&
+        exit 0
+      "
+    networks:
+      - app-network
+
+  tests:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: org_catalog_tests
+    command: >
+      sh -c "chmod +x scripts/run_tests.sh && scripts/run_tests.sh"
+    environment:
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: catalog_user
+      POSTGRES_PASSWORD: catalog_password
+      POSTGRES_DB: organization_catalog
+      DATABASE_URL: postgresql://catalog_user:catalog_password@postgres:5432/organization_catalog
+
+      API_KEY: test-api-key-123
+      API_KEY_NAME: X-API-Key
+
+      PYTHONPATH: /app
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  app:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: org_catalog_api
+    command: >
+      sh -c "python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      # Database
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: catalog_user
+      POSTGRES_PASSWORD: catalog_password
+      POSTGRES_DB: organization_catalog
+      DATABASE_URL: postgresql://catalog_user:catalog_password@postgres:5432/organization_catalog
+
+      # App settings
+      API_KEY: test-api-key-123
+      API_KEY_NAME: X-API-Key
+
+      # Development
+      PYTHONPATH: /app
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      tests:
+        condition: service_completed_successfully
+    networks:
+      - app-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: org_catalog_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@orgcatalog.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

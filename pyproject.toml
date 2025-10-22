@@ -2,12 +2,18 @@
 name = "organization-catalog-api"
 version = "0.1.0"
 description = ""
-authors = ["Световидов Олег Петрович <osvetovidov@samokat.ru>"]
+authors = ["Световидов Олег Петрович <olegsvetovidov@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.13"
-
+fastapi = "^0.119.1"
+sqlalchemy = "^2.0.44"
+uliweb-alembic = "^0.6.9"
+pydantic-settings = "^2.11.0"
+pytest = "^8.4.2"
+httpx = "^0.28.1"
+psycopg2-binary = "2.9.11"
 
 [build-system]
 requires = ["poetry-core"]
